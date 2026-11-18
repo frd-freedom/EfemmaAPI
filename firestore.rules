@@ -1,0 +1,336 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isBootstrappedAdminEmail() {
+      return isVerified() &&
+        request.auth.token.email is string &&
+        request.auth.token.email.size() <= 256 &&
+        request.auth.token.email.lower() == 'predimahrobi@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdminEmail() || (
+        isVerified() && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isUserNotSuspended(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId)) &&
+        !('suspended' in get(/databases/$(database)/documents/users/$(userId)).data &&
+          get(/databases/$(database)/documents/users/$(userId)).data.suspended == true);
+    }
+
+    function isValidUserPayload(data, userId) {
+      return data.keys().hasAll([
+          'uid', 'email', 'displayName', 'photoURL', 'role',
+          'apiKey', 'creditsUsedToday', 'creditsResetDate', 'dailyLimit',
+          'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'uid', 'email', 'displayName', 'photoURL', 'role',
+          'apiKey', 'creditsUsedToday', 'creditsResetDate', 'dailyLimit',
+          'roleAssignedAt', 'roleExpiresAt',
+          'suspended', 'suspendedReason', 'suspendedAt',
+          'createdAt', 'updatedAt'
+        ]) &&
+        data.uid is string && data.uid == userId && data.uid.size() <= 128 &&
+        data.email is string && data.email.size() <= 256 &&
+        data.displayName is string && data.displayName.size() <= 120 &&
+        data.photoURL is string && data.photoURL.size() <= 512 &&
+        data.role is string && data.role.size() >= 1 && data.role.size() <= 40 && data.role.matches('^[a-z0-9_\\-]+$') &&
+        data.apiKey is string && data.apiKey.size() <= 80 && data.apiKey.matches('^efm_(live|adm)_[a-f0-9]{24}$') &&
+        data.creditsUsedToday is int && data.creditsUsedToday >= 0 &&
+        data.creditsResetDate is string && data.creditsResetDate.size() == 10 &&
+        data.creditsResetDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
+        data.dailyLimit is int && data.dailyLimit >= -1 && data.dailyLimit <= 10000000 &&
+        (!('roleAssignedAt' in data) || (data.roleAssignedAt is int && data.roleAssignedAt >= 0)) &&
+        (!('roleExpiresAt' in data) || (data.roleExpiresAt is int && data.roleExpiresAt >= 0)) &&
+        (!('suspended' in data) || data.suspended is bool) &&
+        (!('suspendedReason' in data) || (data.suspendedReason is string && data.suspendedReason.size() <= 300)) &&
+        (!('suspendedAt' in data) || (data.suspendedAt is int && data.suspendedAt >= 0)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidUsageLog(data, userId) {
+      return data.keys().hasAll(['uid', 'endpointId', 'method', 'path', 'status', 'latencyMs', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'endpointId', 'method', 'path', 'status', 'latencyMs', 'createdAt']) &&
+        data.uid is string && data.uid == userId && data.uid.size() <= 128 &&
+        data.endpointId is string && data.endpointId.size() <= 64 &&
+        data.method is string && data.method in ['GET', 'POST'] &&
+        data.path is string && data.path.size() <= 256 &&
+        data.status is int && data.status >= 0 && data.status <= 599 &&
+        data.latencyMs is int && data.latencyMs >= 0 && data.latencyMs <= 600000 &&
+        data.createdAt == request.time;
+    }
+
+    function isValidReadReceipt(data, userId, notifId) {
+      return data.keys().hasAll(['uid', 'notifId', 'readAt']) &&
+        data.keys().hasOnly(['uid', 'notifId', 'readAt']) &&
+        data.uid is string && data.uid == userId && data.uid.size() <= 128 &&
+        data.notifId is string && data.notifId == notifId && data.notifId.size() <= 128 &&
+        data.readAt == request.time;
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['title', 'message', 'priority', 'active', 'createdBy', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['title', 'message', 'priority', 'active', 'createdBy', 'createdAt', 'updatedAt']) &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 140 &&
+        data.message is string && data.message.size() >= 1 && data.message.size() <= 1000 &&
+        data.priority is string && data.priority in ['normal', 'penting', 'always'] &&
+        data.active is bool &&
+        data.createdBy is string && data.createdBy.size() <= 128 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidSiteCoreFields(data) {
+      return data.brandName is string && data.brandName.size() >= 1 && data.brandName.size() <= 60 &&
+        data.welcomePageTitle is string && data.welcomePageTitle.size() >= 1 && data.welcomePageTitle.size() <= 120 &&
+        data.welcomeBannerImageUrl is string && data.welcomeBannerImageUrl.size() <= 700000 &&
+        data.whatsappNumber is string && data.whatsappNumber.size() >= 1 && data.whatsappNumber.size() <= 30 &&
+        data.spotifyPlayerTitle is string && data.spotifyPlayerTitle.size() >= 1 && data.spotifyPlayerTitle.size() <= 120 &&
+        data.spotifyPlayerBadge is string && data.spotifyPlayerBadge.size() >= 1 && data.spotifyPlayerBadge.size() <= 40 &&
+        data.spotifyPlayerDesc is string && data.spotifyPlayerDesc.size() >= 1 && data.spotifyPlayerDesc.size() <= 500 &&
+        data.footerBrandDesc is string && data.footerBrandDesc.size() <= 500 &&
+        data.footerCopyright is string && data.footerCopyright.size() <= 160 &&
+        data.updatedAt == request.time &&
+        data.updatedBy is string && data.updatedBy == request.auth.uid && data.updatedBy.size() <= 128;
+    }
+
+    function isValidSiteCollectionBounds(data) {
+      return data.pricingPlans is list && data.pricingPlans.size() >= 1 && data.pricingPlans.size() <= 10 &&
+        data.pricingPlans[0] is map &&
+        data.pricingComparisonRows is list && data.pricingComparisonRows.size() <= 20 &&
+        data.categoryOrder is list && data.categoryOrder.size() >= 1 && data.categoryOrder.size() <= 20 &&
+        data.categoryOrder[0] is string &&
+        data.hiddenCategories is list && data.hiddenCategories.size() <= 20 &&
+        (data.hiddenCategories.size() == 0 || data.hiddenCategories[0] is string) &&
+        data.hiddenEndpointIds is list && data.hiddenEndpointIds.size() <= 100 &&
+        (data.hiddenEndpointIds.size() == 0 || data.hiddenEndpointIds[0] is string) &&
+        (!('privateEndpointIds' in data) || (data.privateEndpointIds is list && data.privateEndpointIds.size() <= 100 && (data.privateEndpointIds.size() == 0 || data.privateEndpointIds[0] is string))) &&
+        (!('privateEndpointRoles' in data) || (data.privateEndpointRoles is map && data.privateEndpointRoles.size() <= 100)) &&
+        (!('footerLinks' in data) || (data.footerLinks is list && data.footerLinks.size() <= 10 && (data.footerLinks.size() == 0 || data.footerLinks[0] is map))) &&
+        (!('csChannels' in data) || (data.csChannels is list && data.csChannels.size() <= 10 && (data.csChannels.size() == 0 || data.csChannels[0] is map))) &&
+        (!('faqItems' in data) || (data.faqItems is list && data.faqItems.size() <= 25 && (data.faqItems.size() == 0 || data.faqItems[0] is map))) &&
+        (!('sosmedItems' in data) || (data.sosmedItems is list && data.sosmedItems.size() <= 12 && (data.sosmedItems.size() == 0 || data.sosmedItems[0] is map)));
+    }
+
+    function isValidSiteContent(data) {
+      return data.keys().toSet().hasAll([
+          'brandName', 'welcomePageTitle', 'welcomeBannerImageUrl', 'whatsappNumber',
+          'pricingPlans', 'pricingComparisonRows',
+          'spotifyPlayerTitle', 'spotifyPlayerBadge', 'spotifyPlayerDesc',
+          'categoryOrder', 'hiddenCategories', 'hiddenEndpointIds',
+          'updatedAt', 'updatedBy'
+        ]) &&
+        data.keys().toSet().hasOnly([
+          'brandName', 'loginButtonLabel', 'logoutConfirmTitle', 'logoutConfirmMessage',
+          'logoutConfirmYesLabel', 'logoutConfirmCancelLabel',
+          'welcomePageTitle', 'welcomePageSubtitle', 'bannerSubtitle', 'welcomeBannerImageUrl',
+          'introHeading', 'introParagraph1', 'introParagraph2',
+          'welcomeCardDocsTitle', 'welcomeCardDocsDesc', 'welcomeCardDocsBtn',
+          'welcomeCardKeysTitle', 'welcomeCardKeysDesc', 'welcomeCardKeysBtn',
+          'welcomeCardPricingTitle', 'welcomeCardPricingDesc', 'welcomeCardPricingBtn',
+          'docsNotice', 'docsRunButtonLabel', 'docsLoginButtonLabel', 'docsUpgradeButtonLabel', 'docsViewKeyButtonLabel',
+          'keysPageTitle', 'keysPageSubtitle', 'keysGenerateButtonLabel', 'keysUsageHeading',
+          'pricingTitle', 'pricingSubtitle', 'pricingComparisonTitle', 'whatsappNumber',
+          'pricingPlans', 'pricingComparisonRows',
+          'footerTitle', 'footerVersion', 'footerLinks', 'footerGithubUrl',
+          'footerBrandDesc', 'footerCopyright', 'footerRightNote',
+          'spotifyPlayerTitle', 'spotifyPlayerBadge', 'spotifyPlayerDesc', 'categoryOrder',
+          'hiddenCategories', 'hiddenEndpointIds', 'privateEndpointIds', 'privateEndpointRoles',
+          'hubCsLabel', 'hubFaqLabel', 'hubSosmedLabel', 'hubPublicChatLabel',
+          'csPageTitle', 'csPageSubtitle', 'csResponseHours', 'csChannels',
+          'faqPageTitle', 'faqPageSubtitle', 'faqItems',
+          'sosmedPageTitle', 'sosmedPageSubtitle', 'sosmedItems',
+          'publicChatTitle', 'publicChatBadge', 'publicChatSubtitle', 'publicChatDescription',
+          'publicChatCtaLabel', 'publicChatCtaUrl',
+          'updatedAt', 'updatedBy'
+        ]) &&
+        isValidSiteCoreFields(data) &&
+        isValidSiteCollectionBounds(data);
+    }
+
+    function isValidUpgradeRequest(data) {
+      return data.keys().hasAll([
+          'uid', 'email', 'displayName', 'requestedPlan', 'note', 'status', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'uid', 'email', 'displayName', 'requestedPlan', 'note', 'status', 'createdAt', 'updatedAt'
+        ]) &&
+        data.uid is string && data.uid.size() <= 128 &&
+        data.email is string && data.email.size() <= 256 &&
+        data.displayName is string && data.displayName.size() <= 120 &&
+        data.requestedPlan is string && data.requestedPlan.size() >= 1 && data.requestedPlan.size() <= 40 && data.requestedPlan.matches('^[a-z0-9_\\-]+$') &&
+        data.note is string && data.note.size() <= 500 &&
+        data.status is string && data.status in ['pending', 'approved', 'rejected'] &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    match /admins/{uid} {
+      allow get: if isSignedIn() && isOwner(uid);
+      allow list: if false;
+      allow create, update, delete: if isAdmin() && isValidId(uid);
+    }
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
+
+      allow create: if isVerified() && isOwner(userId) && isValidId(userId) &&
+        isValidUserPayload(incoming(), userId) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        incoming().creditsUsedToday == 0 &&
+        (!('suspended' in incoming()) || incoming().suspended == false) &&
+        (
+          (isBootstrappedAdminEmail() && incoming().role == 'admin' && incoming().dailyLimit == -1) ||
+          (!isBootstrappedAdminEmail() && incoming().role == 'free' && incoming().dailyLimit == 10)
+        );
+
+      allow update: if isVerified() && isValidId(userId) &&
+        isValidUserPayload(incoming(), userId) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          isAdmin() ||
+          (
+            isOwner(userId) &&
+            !('suspended' in existing() && existing().suspended == true) &&
+            (
+              incoming().diff(existing()).affectedKeys().hasOnly(['apiKey', 'updatedAt']) ||
+              incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'updatedAt']) ||
+              (
+                incoming().diff(existing()).affectedKeys().hasOnly(['role', 'dailyLimit', 'roleExpiresAt', 'updatedAt']) &&
+                existing().role != 'free' &&
+                ('roleExpiresAt' in existing()) &&
+                existing().roleExpiresAt is int &&
+                existing().roleExpiresAt > 0 &&
+                request.time.toMillis() >= existing().roleExpiresAt &&
+                incoming().role == 'free' &&
+                incoming().dailyLimit == 10 &&
+                incoming().roleExpiresAt == 0 &&
+                incoming().apiKey == existing().apiKey
+              ) ||
+              (
+                incoming().diff(existing()).affectedKeys().hasOnly(['creditsUsedToday', 'creditsResetDate', 'updatedAt']) &&
+                (
+                  (
+                    incoming().creditsResetDate == existing().creditsResetDate &&
+                    incoming().creditsUsedToday == existing().creditsUsedToday + 1 &&
+                    (existing().dailyLimit == -1 || incoming().creditsUsedToday <= existing().dailyLimit)
+                  ) ||
+                  (
+                    incoming().creditsResetDate > existing().creditsResetDate &&
+                    incoming().creditsUsedToday == 1
+                  )
+                )
+              )
+            )
+          )
+        );
+
+      allow delete: if isVerified() && isValidId(userId) && isAdmin() &&
+        userId != request.auth.uid &&
+        existing().email.lower() != 'predimahrobi@gmail.com';
+
+      match /usageLogs/{logId} {
+        allow get: if isValidId(userId) && isValidId(logId) && (isOwner(userId) || isAdmin());
+        allow list: if isValidId(userId) && (isOwner(userId) || isAdmin());
+        allow create: if isVerified() && isOwner(userId) && isValidId(userId) && isValidId(logId) &&
+          isUserNotSuspended(userId) &&
+          isValidUsageLog(incoming(), userId);
+        allow delete: if isVerified() && isValidId(userId) && isValidId(logId) && isAdmin();
+      }
+
+      match /readNotifications/{notifId} {
+        allow get: if isValidId(userId) && isValidId(notifId) && (isOwner(userId) || isAdmin());
+        allow list: if isValidId(userId) && (isOwner(userId) || isAdmin());
+        allow create: if isVerified() && isOwner(userId) && isValidId(userId) && isValidId(notifId) &&
+          isValidReadReceipt(incoming(), userId, notifId);
+        allow delete: if isVerified() && isValidId(userId) && isValidId(notifId) && isAdmin();
+      }
+    }
+
+    match /{path=**}/usageLogs/{logId} {
+      allow get, list: if isAdmin();
+    }
+
+    match /notifications/{notifId} {
+      allow get: if isValidId(notifId) && (existing().active == true || isAdmin());
+      allow list: if isAdmin() || resource.data.active == true;
+      allow create: if isVerified() && isValidId(notifId) &&
+        isValidNotification(incoming()) &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        isAdmin();
+      allow update: if isVerified() && isValidId(notifId) &&
+        isValidNotification(incoming()) &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['title', 'message', 'priority', 'active', 'updatedAt']) &&
+        isAdmin();
+      allow delete: if isVerified() && isValidId(notifId) && isAdmin();
+    }
+
+    match /siteContent/{docId} {
+      allow get: if isValidId(docId);
+      allow list: if false;
+      allow create: if isVerified() && isValidId(docId) && isValidSiteContent(incoming()) && isAdmin();
+      allow update: if isVerified() && isValidId(docId) && isValidSiteContent(incoming()) && isAdmin();
+    }
+
+    match /upgradeRequests/{requestId} {
+      allow get: if isValidId(requestId) && ((isSignedIn() && existing().uid == request.auth.uid) || isAdmin());
+      allow list: if (isSignedIn() && resource.data.uid == request.auth.uid) || isAdmin();
+      allow create: if isVerified() && isValidId(requestId) &&
+        isValidUpgradeRequest(incoming()) &&
+        incoming().uid == request.auth.uid &&
+        incoming().status == 'pending' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(requestId) &&
+        isValidUpgradeRequest(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']) &&
+        isAdmin();
+      allow delete: if isVerified() && isValidId(requestId) && isAdmin();
+    }
+  }
+}

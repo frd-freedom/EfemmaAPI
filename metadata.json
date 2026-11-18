@@ -1,0 +1,6 @@
+{
+  "name": "EfemmaAPI",
+  "description": "Platform penyedia layanan REST API terpadu untuk data cuaca real-time, konversi mata uang global, dan integrasi pihak ketiga dengan dokumentasi interaktif.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

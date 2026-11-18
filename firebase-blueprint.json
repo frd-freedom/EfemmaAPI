@@ -1,0 +1,268 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Profil pengguna terautentikasi Google OAuth beserta API key dan kuota kredit harian.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 256 },
+        "displayName": { "type": "string", "maxLength": 120 },
+        "photoURL": { "type": "string", "maxLength": 512 },
+        "role": { "type": "string", "maxLength": 40, "pattern": "^[a-z0-9_\\-]+$" },
+        "apiKey": { "type": "string", "maxLength": 80, "pattern": "^efm_(live|adm)_[a-f0-9]{24}$" },
+        "creditsUsedToday": { "type": "integer" },
+        "creditsResetDate": { "type": "string", "maxLength": 10, "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "dailyLimit": { "type": "integer" },
+        "roleAssignedAt": { "type": "integer" },
+        "roleExpiresAt": { "type": "integer" },
+        "suspended": { "type": "boolean" },
+        "suspendedReason": { "type": "string", "maxLength": 300 },
+        "suspendedAt": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "email",
+        "displayName",
+        "photoURL",
+        "role",
+        "apiKey",
+        "creditsUsedToday",
+        "creditsResetDate",
+        "dailyLimit",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "UsageLog": {
+      "title": "UsageLog",
+      "description": "Catatan pemakaian endpoint API per pengguna.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "endpointId": { "type": "string", "maxLength": 64 },
+        "method": { "type": "string", "enum": ["GET", "POST"] },
+        "path": { "type": "string", "maxLength": 256 },
+        "status": { "type": "integer" },
+        "latencyMs": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "endpointId", "method", "path", "status", "latencyMs", "createdAt"]
+    },
+    "ReadNotificationReceipt": {
+      "title": "ReadNotificationReceipt",
+      "description": "Tanda baca notifikasi untuk setiap pengguna.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "notifId": { "type": "string", "maxLength": 128 },
+        "readAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "notifId", "readAt"]
+    },
+    "NotificationItem": {
+      "title": "NotificationItem",
+      "description": "Notifikasi pengumuman dari Admin dengan prioritas Normal, Penting, atau Always.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "message": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "priority": { "type": "string", "enum": ["normal", "penting", "always"] },
+        "active": { "type": "boolean" },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "message", "priority", "active", "createdBy", "createdAt", "updatedAt"]
+    },
+    "SiteContent": {
+      "title": "SiteContent",
+      "description": "Konfigurasi seluruh teks, gambar welcome, tombol, footer, dan daftar pricing yang dapat diedit Admin.",
+      "type": "object",
+      "properties": {
+        "brandName": { "type": "string", "maxLength": 60 },
+        "loginButtonLabel": { "type": "string", "maxLength": 40 },
+        "logoutConfirmTitle": { "type": "string", "maxLength": 80 },
+        "logoutConfirmMessage": { "type": "string", "maxLength": 240 },
+        "logoutConfirmYesLabel": { "type": "string", "maxLength": 40 },
+        "logoutConfirmCancelLabel": { "type": "string", "maxLength": 40 },
+        "welcomePageTitle": { "type": "string", "maxLength": 120 },
+        "welcomePageSubtitle": { "type": "string", "maxLength": 240 },
+        "bannerSubtitle": { "type": "string", "maxLength": 80 },
+        "welcomeBannerImageUrl": { "type": "string", "maxLength": 700000 },
+        "introHeading": { "type": "string", "maxLength": 160 },
+        "introParagraph1": { "type": "string", "maxLength": 1000 },
+        "introParagraph2": { "type": "string", "maxLength": 1000 },
+        "welcomeCardDocsTitle": { "type": "string", "maxLength": 80 },
+        "welcomeCardDocsDesc": { "type": "string", "maxLength": 240 },
+        "welcomeCardDocsBtn": { "type": "string", "maxLength": 50 },
+        "welcomeCardKeysTitle": { "type": "string", "maxLength": 80 },
+        "welcomeCardKeysDesc": { "type": "string", "maxLength": 240 },
+        "welcomeCardKeysBtn": { "type": "string", "maxLength": 50 },
+        "welcomeCardPricingTitle": { "type": "string", "maxLength": 80 },
+        "welcomeCardPricingDesc": { "type": "string", "maxLength": 240 },
+        "welcomeCardPricingBtn": { "type": "string", "maxLength": 50 },
+        "docsNotice": { "type": "string", "maxLength": 400 },
+        "docsRunButtonLabel": { "type": "string", "maxLength": 60 },
+        "docsLoginButtonLabel": { "type": "string", "maxLength": 60 },
+        "docsUpgradeButtonLabel": { "type": "string", "maxLength": 60 },
+        "docsViewKeyButtonLabel": { "type": "string", "maxLength": 60 },
+        "keysPageTitle": { "type": "string", "maxLength": 120 },
+        "keysPageSubtitle": { "type": "string", "maxLength": 240 },
+        "keysGenerateButtonLabel": { "type": "string", "maxLength": 60 },
+        "keysUsageHeading": { "type": "string", "maxLength": 100 },
+        "pricingTitle": { "type": "string", "maxLength": 140 },
+        "pricingSubtitle": { "type": "string", "maxLength": 300 },
+        "pricingComparisonTitle": { "type": "string", "maxLength": 120 },
+        "whatsappNumber": { "type": "string", "maxLength": 30 },
+        "pricingPlans": { "type": "array" },
+        "pricingComparisonRows": { "type": "array" },
+        "footerTitle": { "type": "string", "maxLength": 80 },
+        "footerVersion": { "type": "string", "maxLength": 30 },
+        "footerLinks": { "type": "array" },
+        "footerGithubUrl": { "type": "string", "maxLength": 300 },
+        "footerBrandDesc": { "type": "string", "maxLength": 500 },
+        "footerCopyright": { "type": "string", "maxLength": 160 },
+        "footerRightNote": { "type": "string", "maxLength": 160 },
+        "spotifyPlayerTitle": { "type": "string", "maxLength": 120 },
+        "spotifyPlayerBadge": { "type": "string", "maxLength": 40 },
+        "spotifyPlayerDesc": { "type": "string", "maxLength": 500 },
+        "categoryOrder": { "type": "array" },
+        "hiddenCategories": { "type": "array" },
+        "hiddenEndpointIds": { "type": "array" },
+        "privateEndpointIds": { "type": "array" },
+        "privateEndpointRoles": { "type": "object" },
+        "hubCsLabel": { "type": "string", "maxLength": 40 },
+        "hubFaqLabel": { "type": "string", "maxLength": 40 },
+        "hubSosmedLabel": { "type": "string", "maxLength": 40 },
+        "hubPublicChatLabel": { "type": "string", "maxLength": 40 },
+        "csPageTitle": { "type": "string", "maxLength": 120 },
+        "csPageSubtitle": { "type": "string", "maxLength": 300 },
+        "csResponseHours": { "type": "string", "maxLength": 120 },
+        "csChannels": { "type": "array" },
+        "faqPageTitle": { "type": "string", "maxLength": 120 },
+        "faqPageSubtitle": { "type": "string", "maxLength": 300 },
+        "faqItems": { "type": "array" },
+        "sosmedPageTitle": { "type": "string", "maxLength": 120 },
+        "sosmedPageSubtitle": { "type": "string", "maxLength": 300 },
+        "sosmedItems": { "type": "array" },
+        "publicChatTitle": { "type": "string", "maxLength": 120 },
+        "publicChatBadge": { "type": "string", "maxLength": 30 },
+        "publicChatSubtitle": { "type": "string", "maxLength": 300 },
+        "publicChatDescription": { "type": "string", "maxLength": 800 },
+        "publicChatCtaLabel": { "type": "string", "maxLength": 60 },
+        "publicChatCtaUrl": { "type": "string", "maxLength": 300 },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "updatedBy": { "type": "string", "maxLength": 128 }
+      },
+      "required": [
+        "brandName",
+        "loginButtonLabel",
+        "logoutConfirmTitle",
+        "logoutConfirmMessage",
+        "logoutConfirmYesLabel",
+        "logoutConfirmCancelLabel",
+        "welcomePageTitle",
+        "welcomePageSubtitle",
+        "bannerSubtitle",
+        "welcomeBannerImageUrl",
+        "introHeading",
+        "introParagraph1",
+        "introParagraph2",
+        "welcomeCardDocsTitle",
+        "welcomeCardDocsDesc",
+        "welcomeCardDocsBtn",
+        "welcomeCardKeysTitle",
+        "welcomeCardKeysDesc",
+        "welcomeCardKeysBtn",
+        "welcomeCardPricingTitle",
+        "welcomeCardPricingDesc",
+        "welcomeCardPricingBtn",
+        "docsNotice",
+        "docsRunButtonLabel",
+        "docsLoginButtonLabel",
+        "docsUpgradeButtonLabel",
+        "docsViewKeyButtonLabel",
+        "keysPageTitle",
+        "keysPageSubtitle",
+        "keysGenerateButtonLabel",
+        "keysUsageHeading",
+        "pricingTitle",
+        "pricingSubtitle",
+        "pricingComparisonTitle",
+        "whatsappNumber",
+        "pricingPlans",
+        "pricingComparisonRows",
+        "footerBrandDesc",
+        "footerCopyright",
+        "footerRightNote",
+        "spotifyPlayerTitle",
+        "spotifyPlayerBadge",
+        "spotifyPlayerDesc",
+        "categoryOrder",
+        "hiddenCategories",
+        "hiddenEndpointIds",
+        "updatedAt",
+        "updatedBy"
+      ]
+    },
+    "UpgradeRequest": {
+      "title": "UpgradeRequest",
+      "description": "Permintaan upgrade paket akses dari pengguna.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 256 },
+        "displayName": { "type": "string", "maxLength": 120 },
+        "requestedPlan": { "type": "string", "maxLength": 40, "pattern": "^[a-z0-9_\\-]+$" },
+        "note": { "type": "string", "maxLength": 500 },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "displayName", "requestedPlan", "note", "status", "createdAt", "updatedAt"]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Daftar UID administrator yang diotorisasi.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid"]
+    }
+  },
+  "firestore": {
+    "/admins/{uid}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Dokumen penanda hak administrator."
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Profil pengguna, API key, role, dan kuota kredit harian."
+    },
+    "/users/{userId}/usageLogs/{logId}": {
+      "schema": { "$ref": "#/entities/UsageLog" },
+      "description": "Log pemanggilan API per pengguna."
+    },
+    "/users/{userId}/readNotifications/{notifId}": {
+      "schema": { "$ref": "#/entities/ReadNotificationReceipt" },
+      "description": "Status notifikasi yang sudah dibaca pengguna."
+    },
+    "/notifications/{notifId}": {
+      "schema": { "$ref": "#/entities/NotificationItem" },
+      "description": "Daftar notifikasi pengumuman dari Admin."
+    },
+    "/siteContent/{docId}": {
+      "schema": { "$ref": "#/entities/SiteContent" },
+      "description": "Konfigurasi teks, gambar welcome, tombol, footer, dan daftar pricing yang dapat diedit admin."
+    },
+    "/upgradeRequests/{requestId}": {
+      "schema": { "$ref": "#/entities/UpgradeRequest" },
+      "description": "Permintaan upgrade role pengguna."
+    }
+  }
+}
